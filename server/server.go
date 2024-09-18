@@ -63,9 +63,13 @@ func Initialize(cfg *config.Config) (*Server, error) {
 		},
 	}))
 
-	db, err := postgres.Connect(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("cannot connect to postgres database: %w", err)
+	var db *pgxpool.Pool
+	if len(cfg.Database.URL) > 0 {
+		var err error
+		db, err = postgres.Connect(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("cannot connect to postgres database: %w", err)
+		}
 	}
 
 	return &Server{
@@ -117,7 +121,9 @@ func (s *Server) StartServer(ctx context.Context) error {
 	ctxShutdown, cancelShutdown := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelShutdown()
 
-	s.DB.Close()
+	if s.DB != nil {
+		s.DB.Close()
+	}
 
 	err := s.Echo.Shutdown(ctxShutdown)
 	if err != nil {
